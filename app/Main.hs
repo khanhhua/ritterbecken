@@ -1,33 +1,22 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
-import Control.Monad (join)
+import Control.Monad
+    (join)
 import Data.List
+import Glyph
+import Model
+    (Cell (..), Player (..))
 
 data Action
-    = Forward Int
-    | Left Int
-    | Right Int
-    | Attack
+  = Forward Int
+  | Left Int
+  | Right Int
+  | Attack
 
-data Player = Ritter | Wikinger
-    deriving (Eq)
 
-instance Show Player where
-    show Ritter = "R"
-    show Wikinger = "W"
-
-data Cell
-    = Water
-    | Float
-    | Occupied Player
-
-instance Show Cell where
-    show Water = "~"
-    show Float = "_"
-    show (Occupied p) = show p
-
-newtype Board = Board [Cell]
+newtype Board
+  = Board [Cell]
 
 instance Show Board where
     show (Board (c00:c01:c02:c03:c04:
@@ -53,14 +42,14 @@ showRow :: Show a => [a] -> String
 showRow =
     concatMap show
 
-data GameState = GameState
-    { board :: Board
-    , players :: (Player, Player)
-    }
+data GameState
+  = GameState
+      { board   :: Board
+      , players :: (Player, Player)
+      }
 
-newtype Game = Game
-    { update :: Action -> GameState -> IO (String, GameState)
-    }
+newtype Game
+  = Game { update :: Action -> GameState -> IO (String, GameState) }
 
 putPlayer :: GameState -> (Int, Int) -> Player -> GameState
 putPlayer GameState { board, players } (i, j) player =
@@ -82,19 +71,10 @@ getPlayer gameState = undefined
 rotatePlayer :: GameState -> (Player, GameState)
 rotatePlayer gameState = undefined
 
-draw :: GameState -> String
-draw GameState { board, players } =
+render :: GameState -> String
+render GameState { board, players } =
     show board
 
 
 main :: IO ()
-main = do
-    let
-        defaultBoard = Board $ 
-            replicate 5 Water <>
-            replicate 30 Float <>
-            replicate 5 Water
-        gameState0 = GameState defaultBoard (Ritter, Wikinger)
-        gameState1 = putPlayer gameState0 (1, 0) Ritter
-        gameState = putPlayer gameState1 (6, 4) Wikinger
-    putStrLn $ draw gameState
+main = undefined
