@@ -77,4 +77,7 @@ render GameState { board, players } =
 
 
 main :: IO ()
-main = undefined
+main = do
+  let
+    cellRow = row [Water, Water, Water]
+  print cellRow
