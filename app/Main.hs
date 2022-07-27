@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 import Control.Monad
     (forever, join)
@@ -100,7 +101,7 @@ applyAction action = do
   get
 
 main :: IO ()
-main = forever $ do
+main =
   go initialGameState
   where
     initialGameState = GameState defaultBoard
@@ -115,15 +116,13 @@ main = forever $ do
       hFlush stdout
       cmd <- getLine
       let
-        -- TODO Parse series of commands like
-        -- "DDS" -> Right Right Down and exec the applyAction accordingly
-        action = case cmd of
-          "D" -> Right
-          "A" -> Left
-          "W" -> Up
-          "S" -> Down
-          _ -> undefined
-
-        updatedGameState = execState (applyAction action) gameState
+        actions = (\case
+          'D' -> Right
+          'A' -> Left
+          'W' -> Up
+          'S' -> Down
+          _ -> undefined) <$> cmd
+        m = traverse applyAction actions
+        updatedGameState = execState m gameState
 
       go updatedGameState
