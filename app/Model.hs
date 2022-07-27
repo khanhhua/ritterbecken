@@ -15,17 +15,17 @@ data Cell
   | Occupied Player
 
 instance ToGlyph Cell where
-  toGlyph Water =        Glyph [ "+-W-+"
-                               , "|~~~|"
-                               , "+---+"
+  toGlyph Water =        Glyph [ "~~~~~"
+                               , "~~~~~"
+                               , "~~~~~"
                                ]
-  toGlyph Float =        Glyph [ "+-F-+"
-                               , "|   |"
-                               , "+---+"
+  toGlyph Float =        Glyph [ ".===."
+                               , "|===|"
+                               , ".___."
                                ]
-  toGlyph (Occupied p) = Glyph [ "+-P-+"
+  toGlyph (Occupied p) = Glyph [ ".---."
                                , "|_" <> show p <> "_|"
-                               , "+---+"
+                               , ".___."
                                ]
 
 
