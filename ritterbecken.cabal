@@ -34,6 +34,8 @@ executable ritterbecken
     default-extensions:
         OverloadedStrings
       , TupleSections
-    build-depends:    base ^>=4.14.3.0
+    build-depends:
+        base ^>=4.14.3.0
+      , mtl ^>= 2.2.2
     hs-source-dirs:   app
     default-language: Haskell2010
