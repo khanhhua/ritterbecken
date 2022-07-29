@@ -43,6 +43,7 @@ data GameState
   = GameState
       { board   :: Board
       , players :: (PlayerInfo, PlayerInfo)
+      , stdGen  :: StdGen
       }
 
 render :: GameState -> String
@@ -70,16 +71,27 @@ defaultBoard = [ [Water, Water, Water, Water, Water]
 
 type Game a = State GameState a
 
-movePlayer :: (Int, Int) -> Player -> Game ()
-movePlayer (i, j) player = do
-  GameState { board, players } <- get
+rollDice :: Game Int
+rollDice = do
+  g <- gets stdGen
   let
-    updatedBoard = updateBoard board
-    PlayerInfo _ (i_, j_) energy = fst players
-    delta = abs (i_ - i) + abs (j_ - j)
-    updatedPlayers = fstUpdate players (PlayerInfo player (i, j) (energy - delta))
+    (dice, nextG) = roll g
+  grantPlayerEnergy dice
+  modify (\gameState -> gameState { stdGen = nextG })
 
-  put $ GameState updatedBoard updatedPlayers
+  return dice
+
+movePlayer :: (Int, Int) -> Player -> Game ()
+movePlayer (i, j) player =
+  modify (\gameState -> 
+    let
+      GameState { board, players } = gameState
+      updatedBoard = updateBoard board
+      PlayerInfo _ (i_, j_) energy = fst players
+      delta = abs (i_ - i) + abs (j_ - j)
+      updatedPlayers = fstUpdate players (PlayerInfo player (i, j) (energy - delta))
+    in gameState { board = updatedBoard, players = updatedPlayers }
+    )
 
   where
     updateBoard board = map f (withIndex board)
@@ -95,13 +107,17 @@ movePlayer (i, j) player = do
         | otherwise = Occupied p
     withIndex xs = zip (findIndices (const True) xs) xs
 
+
+activePlayerInfo :: GameState -> PlayerInfo
+activePlayerInfo = fst . players
+
 getActivePlayer :: Game PlayerInfo
-getActivePlayer = gets (fst . players)
+getActivePlayer = gets activePlayerInfo
 
 rotatePlayer :: Game ()
 rotatePlayer = do
   swappedPlayers <- swap <$> gets players
-  modify (\GameState { board } -> GameState board swappedPlayers)
+  modify (\gameState -> gameState { players = swappedPlayers })
 
 applyAction :: Action -> Game GameState
 applyAction action = do
@@ -120,35 +136,36 @@ applyAction action = do
 
 grantPlayerEnergy :: Int -> Game ()
 grantPlayerEnergy energy = do
-  gameState <- get
-  activePlayer <- getActivePlayer
-  let
-    GameState { players } = gameState
-    updatedPlayers = fstUpdate players $ activePlayer { energy = energy }
-  put gameState { players = updatedPlayers }
+  modify (\gameState ->
+    let
+      player = activePlayerInfo gameState
+      GameState { players } = gameState
+      updatedPlayers = fstUpdate players $ player { energy = energy }
+    in gameState { players = updatedPlayers }  
+    )
+
 
 main :: IO ()
 main = do
   g <- newStdGen
-  go initialGameState g
+  go (initialGameState g)
   where
     initialGameState = GameState defaultBoard
         ( PlayerInfo Ritter (1, 0) 0
         , PlayerInfo Wikinger (5, 4) 0
         )
 
-    go :: GameState -> StdGen -> IO ()
-    go gameState g = do
+    go :: GameState -> IO ()
+    go gameState = do
       putStrLn $ render gameState
+
       let
-        (m1, dice, nextG) = if (energy . fst . players) gameState == 0
-          then
-            let
-              (dice, nextG) = roll g
-            in (execState (grantPlayerEnergy dice) gameState, Just dice, nextG)
-          else (gameState, Nothing, g)
-      when (isJust dice) $ do
-        putStrLn $ "System has rolled " <> show (fromJust dice)
+        shouldRollDice = 0 == (energy . activePlayerInfo) gameState
+        (dice, m1) = if shouldRollDice
+          then runState rollDice gameState
+          else (0, gameState)
+      when shouldRollDice $ do
+        putStrLn $ "Dice rolled " <> show dice
 
       putStr "Command (A,S,W,D): "
       hFlush stdout
@@ -166,4 +183,4 @@ main = do
           then execState rotatePlayer m2
           else m2
 
-      go m3 nextG
+      go m3
