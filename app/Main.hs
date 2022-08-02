@@ -44,6 +44,7 @@ data GameState
   = GameState
       { board   :: Board
       , players :: (PlayerInfo, PlayerInfo)
+      , winner  :: Maybe Player
       , stdGen  :: StdGen
       }
 
@@ -109,16 +110,24 @@ movePlayer fn =
     let
       GameState { board, players } = gameState
       playerInfo = fst players
-      
+      PlayerInfo { location = (opponentI, opponentJ) } = snd players
+
       PlayerInfo { energy } = playerInfo
       updatedPlayer = fn playerInfo
-      delta = distance updatedPlayer playerInfo
-      updatedPlayers = fstUpdate players ( updatedPlayer { energy = energy - delta })
+      PlayerInfo { location = (i, j) } = updatedPlayer
+      output = if opponentI == i && opponentJ == j
+        then
+          gameState
+        else
+          let
+            delta = distance updatedPlayer playerInfo
+            updatedPlayers = fstUpdate players ( updatedPlayer { energy = energy - delta })
 
-      updatedBoard = updateBoard board updatedPlayer
-    in gameState { board = updatedBoard
-                 , players = updatedPlayers
-                 }
+            updatedBoard = updateBoard board updatedPlayer
+          in gameState { board = updatedBoard
+                  , players = updatedPlayers
+                  }
+      in output
     )
 
 updateBoard :: [[Cell]] -> PlayerInfo -> [[Cell]]
@@ -151,56 +160,68 @@ rotatePlayer = do
 applyAction :: Action -> Game GameState
 applyAction action
   | action `elem` [Up, Down, Left, Right] = do
-    player <- getActivePlayer
-    let
-      moveFn = case action of
-        Up -> movePlayerUp
-        Down -> movePlayerDown
-        Left -> movePlayerLeft
-        Right -> movePlayerRight
-        _ -> const player
+    me <- getActivePlayer
+    when (energy me > 0) $ do
+      let
+        moveFn = case action of
+          Up -> movePlayerUp
+          Down -> movePlayerDown
+          Left -> movePlayerLeft
+          Right -> movePlayerRight
+          _ -> const me
 
-    movePlayer moveFn
+      movePlayer moveFn
     get
   | action == Attack = do
-    modify (\gameState ->
-      let
-        (attacker, opponent) = players gameState
-        (i, j) = location opponent
-        updatedGameState
-          | attacker `leftOf` opponent =
-            if canMoveRight opponent then
-              gameState { players = ( movePlayerRight attacker
-                                    , movePlayerRight opponent
+    me <- getActivePlayer
+    when (energy me > 0) $
+      modify (\gameState ->
+        let
+          (attacker, opponent) = players gameState
+          (i, j) = location opponent
+          updatedGameState
+            | attacker `leftOf` opponent =
+              if canMoveRight opponent then
+                gameState { players = ( movePlayerRight attacker
+                                      , movePlayerRight opponent
+                                      )
+                          }
+              else
+                gameState
+            | attacker `rightOf` opponent =
+              if canMoveLeft opponent then
+                gameState { players = ( movePlayerLeft attacker
+                                      , movePlayerLeft opponent
+                                      )
+                          }
+              else
+                gameState
+            | attacker `sixOclockOf` opponent =
+              gameState { players = ( movePlayerUp attacker
+                                    , movePlayerUp opponent
                                     )
                         }
-            else
-              gameState
-          | attacker `rightOf` opponent =
-            if canMoveLeft opponent then
-              gameState { players = ( movePlayerLeft attacker
-                                    , movePlayerLeft opponent
+            | attacker `twelveOclockOf` opponent =
+              gameState { players = ( movePlayerDown attacker
+                                    , movePlayerDown opponent
                                     )
                         }
-            else
-              gameState
-          | attacker `sixOclockOf` opponent =
-            gameState { players = ( movePlayerUp attacker
-                                  , movePlayerUp opponent
-                                  )
-                      }
-          | attacker `twelveOclockOf` opponent =
-            gameState { players = ( movePlayerDown attacker
-                                  , movePlayerDown opponent
-                                  )
-                      }
-          | otherwise = gameState
+            | otherwise = gameState
 
-        updatedAttacker = activePlayerInfo updatedGameState
-        updatedOpponent = snd $ players updatedGameState
-        updatedBoard = updateBoard (updateBoard (board updatedGameState) updatedOpponent) updatedAttacker
-      in updatedGameState { board = updatedBoard }
-      )
+          updatedAttacker' = activePlayerInfo updatedGameState
+          updatedOpponent = snd $ players updatedGameState
+          delta = distance updatedAttacker' attacker
+          updatedAttacker = updatedAttacker' { energy = energy updatedAttacker' - delta }
+
+          updatedBoard = updateBoard (updateBoard (board updatedGameState) updatedOpponent) updatedAttacker
+          winner = if intoWater updatedOpponent
+            then Just $ player attacker
+            else Nothing
+        in updatedGameState { board = updatedBoard
+                            , winner = winner
+                            , players = (updatedAttacker, updatedOpponent)
+                            }
+        )
     get
   | otherwise = get
 
@@ -249,8 +270,11 @@ main = do
         ( PlayerInfo Ritter (1, 0) 0
         , PlayerInfo Wikinger (5, 4) 0
         )
+        Nothing
 
     go :: GameState -> IO ()
+    go GameState { winner = Just theWinner } = do
+      putStrLn $ show theWinner <> " has won"
     go gameState = do
       putStrLn $ render gameState
 
