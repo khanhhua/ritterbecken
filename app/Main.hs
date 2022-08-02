@@ -1,38 +1,38 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 module Main where
 import Control.Monad
     (forever, join)
 import Control.Monad.State.Lazy
 import Data.List
+import Data.Maybe
+    (fromJust, isJust)
+import Dice
+    (roll)
 import Glyph
 import Model
     (Cell (..), Player (..))
-import Dice ( roll )
-import Prelude hiding (Left, Right)
-import System.IO (hFlush, stdout)
-import System.Random (StdGen, newStdGen)
-import Data.Maybe (isJust, fromJust)
+import Prelude                  hiding
+    (Left, Right)
+import System.IO
+    (hFlush, stdout)
+import System.Random
+    (StdGen, newStdGen)
 
 
-data Action
-  = Up
-  | Down
-  | Left
-  | Right
-  | Attack
-  deriving (Eq)
+data Action = Up | Down | Left | Right | Attack deriving (Eq)
 
 
 type Board = [[Cell]]
 type Location = (Int, Int)
 
-data PlayerInfo = PlayerInfo
-  { player :: Player
-  , location :: Location
-  , energy :: Int
-  }
+data PlayerInfo
+  = PlayerInfo
+      { player   :: Player
+      , location :: Location
+      , energy   :: Int
+      }
 
 instance Show PlayerInfo where
   show (PlayerInfo player location energy) =
@@ -127,7 +127,7 @@ movePlayer fn =
           in gameState { board = updatedBoard
                   , players = updatedPlayers
                   }
-      in output
+    in output
     )
 
 updateBoard :: [[Cell]] -> PlayerInfo -> [[Cell]]
@@ -164,11 +164,11 @@ applyAction action
     when (energy me > 0) $ do
       let
         moveFn = case action of
-          Up -> movePlayerUp
-          Down -> movePlayerDown
-          Left -> movePlayerLeft
+          Up    -> movePlayerUp
+          Down  -> movePlayerDown
+          Left  -> movePlayerLeft
           Right -> movePlayerRight
-          _ -> const me
+          _     -> const me
 
       movePlayer moveFn
     get
@@ -296,7 +296,7 @@ main = do
           'w' -> Just Up
           's' -> Just Down
           'c' -> Just Attack
-          _ -> Nothing) <$> cmd
+          _   -> Nothing) <$> cmd
         actions = sequence maybeActions
         m3 = case actions of
           Just actions_ ->
